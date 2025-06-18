@@ -1,0 +1,478 @@
+#!/usr/bin/bash
+
+function menu() {
+whiptail --title "User Administration" --menu "Choose an option" 25 78 16 \
+"Add User" "Add a user to the system." \
+"Modify User" "Modify an existing user." \
+"Change User Password" "Change the password of a user." \
+"Enable User" "Enable a user account." \
+"Disable User" "Disable a user account." \
+"Delete User" "Delete a user from the system." \
+"List Users" "List all users on the system." \
+"Add Group" "Add a user group to the system." \
+"Modify Group" "Modify a group and its list of members." \
+"Add User to Group" "Add a user to a group." \
+"List Groups" "List all groups on the system." \
+"Delete Group" "Delete a group from the system." \
+"Exit" "Exit the menu." 3>&1 1>&2 2>&3
+}
+
+function add_user() {
+    local username=$(whiptail --inputbox "Enter the username to add:" 8 78 --title "Add User" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ]
+    then
+    if [[ -z "$username" ]]; then
+        whiptail --msgbox "Username cannot be empty." 8 78 --title "Error"
+        return
+    fi
+    if id "$username" &>/dev/null; then
+        whiptail --msgbox "User '$username' already exists." 8 78 --title "Error"
+        return
+    fi
+    if [[ ! "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+        whiptail --msgbox "Invalid username. Use only lowercase letters, numbers, dashes (-), or underscores (_). Must start with a letter or underscore." 8 78 --title "Error"
+        return
+    fi    
+        sudo useradd "$username"
+        set_password $username 
+        whiptail --msgbox "User '$username' added successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "User addition cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function modify_user() {
+    local username=$(whiptail --inputbox "Enter the username to modify:" 8 78 --title "Modify User" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
+    then
+        whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
+        return
+    fi
+    local option=$(whiptail --menu "Modify User Options" 15 78 4 \
+        "Change Username" "Change the username." \
+        "Change User ID" "Change the user ID." \
+        "Change User Home Directory" "Change the user's home directory." \
+        "Cancel" "Cancel the operation." 3>&1 1>&2 2>&3)
+    case $? in
+        0)
+            case ${option} in
+                "Change Username")
+                    local new_username=$(whiptail --inputbox "Enter the new username:" 8 78 --title "Change Username" 3>&1 1>&2 2>&3)
+                    if [ $? -eq 0 ] 
+                    then
+                    if [[ -z "$username" ]]; then
+                        whiptail --msgbox "Username cannot be empty." 8 78 --title "Error"
+                        return
+                    fi
+                    if id "$username" &>/dev/null; then
+                        whiptail --msgbox "User '$username' already exists." 8 78 --title "Error"
+                        return
+                    fi
+                    if [[ ! "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+                        whiptail --msgbox "Invalid username. Use only lowercase letters, numbers, dashes (-), or underscores (_). Must start with a letter or underscore." 8 78 --title "Error"
+                        return
+                    fi    
+                        sudo usermod -l "$new_username" "$username"
+                        whiptail --msgbox "Username changed to '$new_username' successfully." 8 78 --title "Success"
+                    else
+                        whiptail --msgbox "Username change cancelled." 8 78 --title "Cancelled"
+                    fi
+                    ;;
+                "Change User ID")
+                    local new_uid=$(whiptail --inputbox "Enter the new user ID:" 8 78 --title "Change User ID" 3>&1 1>&2 2>&3)
+                    if [ $? -eq 0 ] 
+                    then
+                    if [[ -z "$new_uid" || ! "$new_uid" =~ ^[0-9]+$ ]]
+                    then
+                        whiptail --msgbox "Invalid user ID. Please enter a numeric value." 8 78 --title "Error"
+                        return
+                    fi
+                    if id -u "$new_uid" &>/dev/null 
+                    then
+                        whiptail --msgbox "User ID '$new_uid' already exists." 8 78 --title "Error"
+                        return
+                    fi
+                        sudo usermod -u "$new_uid" "$username"
+                        whiptail --msgbox "User ID changed to '$new_uid' successfully." 8 78 --title "Success"
+                    else
+                        whiptail --msgbox "User ID change cancelled." 8 78 --title "Cancelled"
+                    fi
+                    ;;
+                "Change User Home Directory")
+                    local new_home=$(whiptail --inputbox "Enter the new home directory:" 8 78 --title "Change User Home Directory" 3>&1 1>&2 2>&3)
+                    if [ $? -eq 0 ] 
+                    then
+                    if [[ -z "$new_home" ]] 
+                    then
+                        whiptail --msgbox "Home directory cannot be empty." 8 78 --title "Error"
+                        return
+                    fi
+                    if [[ ! -d "$new_home" ]]
+                    then
+                        whiptail --msgbox "Home directory '$new_home' does not exist." 8 78 --title "Error"
+                        return
+                    fi
+                        sudo usermod -d "$new_home" "$username"
+                        whiptail --msgbox "Home directory changed to '$new_home' successfully." 8 78 --title "Success"
+                    else
+                        whiptail --msgbox "Home directory change cancelled." 8 78 --title "Cancelled"
+                    fi
+                    ;;
+                *)
+                    whiptail --msgbox "Operation cancelled." 8 78 --title "Cancelled"
+                    ;;
+            esac
+            ;;
+        *)
+            whiptail --msgbox "Operation cancelled." 8 78 --title "Cancelled"
+            ;;
+    esac
+    fi 
+}
+
+function list_users() {
+    local tempfile=$(mktemp)
+    getent passwd | cut -d: -f1 | sort > "$tempfile"
+    local users_array=()
+    while IFS=: read -r username _
+    do
+        users_array+=("$username" "" OFF)
+    done < $tempfile
+    rm -f "$tempfile"
+
+    if [ ${#users_array[@]} -eq 0 ]; then
+        whiptail --msgbox "No users found." 8 40 --title "List Users"
+    else
+        whiptail --checklist "Select users (scrollable)" 20 40 15 \
+        "${users_array[@]}" --title "User List"
+    fi
+}
+
+function add_group() {
+    local groupname=$(whiptail --inputbox "Enter the group name to add:" 8 78 --title "Add Group" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$groupname" ]]; then
+        whiptail --msgbox "Group name cannot be empty." 8 78 --title "Error"
+        return
+    fi
+    if getent group "$groupname" &>/dev/null; then
+        whiptail --msgbox "Group '$groupname' already exists." 8 78 --title "Error"
+        return
+    fi
+    if [[ ! "$groupname" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+        whiptail --msgbox "Invalid group name. Use only lowercase letters, numbers, dashes (-), or underscores (_). Must start with a letter or underscore." 8 78 --title "Error"
+        return
+    fi
+        sudo groupadd "$groupname"
+        whiptail --msgbox "Group '$groupname' added successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "Group addition cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function modify_group() {
+    local groupname=$(whiptail --inputbox "Enter the group name to modify:" 8 78 --title "Modify Group" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$groupname" || ! $(id -u "$groupname" 2>/dev/null) ]]
+    then
+        whiptail --msgbox "Group '$groupname' does not exist." 8 78 --title "Error"
+        return
+    fi
+    local option=$(whiptail --menu "Modify Group Options" 15 78 4 \
+        "Change Group Name" "Change the Group Name." \
+        "Change Group ID" "Change the Group ID." \
+        "Cancel" "Cancel the operation." 3>&1 1>&2 2>&3)
+    case $? in
+        0)
+            case ${option} in
+                "Change Group Name")
+                    local new_groupname=$(whiptail --inputbox "Enter the new group name:" 8 78 --title "Change Group Name" 3>&1 1>&2 2>&3)
+                    if [ $? -eq 0 ] 
+                    then
+                    if [[ -z "$new_groupname" ]]; then
+                        whiptail --msgbox "Group name cannot be empty." 8 78 --title "Error"
+                        return
+                    fi
+                    if getent group "$new_groupname" &>/dev/null; then
+                        whiptail --msgbox "Group '$new_groupname' already exists." 8 78 --title "Error"
+                        return
+                    fi
+                    if [[ ! "$new_groupname" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+                        whiptail --msgbox "Invalid group name. Use only lowercase letters, numbers, dashes (-), or underscores (_). Must start with a letter or underscore." 8 78 --title "Error"
+                        return
+                    fi    
+                        sudo groupmod -n "$new_groupname" "$groupname"
+                        whiptail --msgbox "Group name changed to '$new_groupname' successfully." 8 78 --title "Success"
+                    else
+                        whiptail --msgbox "Group name change cancelled." 8 78 --title "Cancelled"
+                    fi
+                    ;;
+                "Change Group ID")
+                    local new_gid=$(whiptail --inputbox "Enter the new group ID:" 8 78 --title "Change Group ID" 3>&1 1>&2 2>&3)
+                    if [ $? -eq 0 ] 
+                    then
+                    if [[ -z "$new_gid" || ! "$new_gid" =~ ^[0-9]+$ ]]
+                    then
+                        whiptail --msgbox "Invalid group ID. Please enter a numeric value." 8 78 --title "Error"
+                        return
+                    fi
+                    if getent group "$new_gid" &>/dev/null 
+                    then
+                        whiptail --msgbox "Group ID '$new_gid' already exists." 8 78 --title "Error"
+                        return
+                    fi
+                        sudo groupmod -g "$new_gid" "$groupname"
+                        whiptail --msgbox "Group ID changed to '$new_gid' successfully." 8 78 --title "Success"
+                    else
+                        whiptail --msgbox "Group ID change cancelled." 8 78 --title "Cancelled"
+                    fi
+                    ;;
+                *)
+                    whiptail --msgbox "Operation cancelled." 8 78 --title "Cancelled"
+                    ;;
+            esac
+            ;;
+        *)
+            whiptail --msgbox "Operation cancelled." 8 78 --title "Cancelled"
+            ;;
+    esac
+    fi
+}
+
+function list_groups() {
+    local tempfile=$(mktemp)
+    getent group | cut -d: -f1 | sort > "$tempfile"
+    local groups_array=()
+    while IFS=: read -r group _
+    do
+        groups_array+=("$group" "" OFF)
+    done < $tempfile
+    rm -f "$tempfile"
+
+    if [ ${#groups_array[@]} -eq 0 ]; then
+        whiptail --msgbox "No groups found." 8 40 --title "Group Users"
+    else
+        whiptail --checklist "Select groups (scrollable)" 20 40 15 \
+        "${groups_array[@]}" --title "Group List"
+    fi
+}
+
+function set_password(){
+    local password=$(whiptail --passwordbox "Enter the new password for user '$1':" 8 78 --title "Set Password" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+        echo $password | passwd --stdin "$1"
+        whiptail --msgbox "Password for user '$1' changed successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "Password change cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function change_password() {
+    local username=$(whiptail --inputbox "Enter the username to change password:" 8 78 --title "Change User Password" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+        set_password $username
+    else
+        whiptail --msgbox "Password change cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function enable_user() {
+    local username=$(whiptail --inputbox "Enter the username to enable:" 8 78 --title "Enable User" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+        if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
+        then
+            whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
+            return
+        fi
+        sudo usermod -U "$username"
+        whiptail --msgbox "User '$username' enabled successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "User enabling cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function disable_user() {
+    local username=$(whiptail --inputbox "Enter the username to disable:" 8 78 --title "Disable User" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
+    then
+        whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
+        return
+    fi
+        sudo usermod -L "$username"
+        whiptail --msgbox "User '$username' disabled successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "User disabling cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function delete_user() {
+    delete_option=$(whiptail --menu "Choose an option" 15 78 4 \
+        "Delete User with Files" "Delete a user and their files." \
+        "Delete User without Files" "Delete a user without their files." \
+        "Cancel" "Cancel the operation." 3>&1 1>&2 2>&3)  
+        case $? in
+            0)
+                case ${delete_option} in
+                    "Delete User with Files")
+                        delete_user_with_files
+                        ;;
+                    "Delete User without Files")
+                        delete_user_without_files
+                        ;;
+                    *)
+                        whiptail --msgbox "Operation cancelled." 8 78 --title "Cancelled"
+                        ;;
+                esac
+                ;;
+            *)
+                whiptail --msgbox "Operation cancelled." 8 78 --title "Cancelled"
+                ;;
+        esac
+}
+
+function delete_user_without_files() { 
+    local username=$(whiptail --inputbox "Enter the username to delete:" 8 78 --title "Delete User" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
+    then
+        whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
+        return
+    fi
+        sudo userdel "$username"
+        whiptail --msgbox "User '$username' deleted successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "User deletion cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function delete_user_with_files() {
+    local username=$(whiptail --inputbox "Enter the username to delete:" 8 78 --title "Delete User" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
+    then
+        whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
+        return
+    fi
+        sudo userdel -rf "$username"
+        whiptail --msgbox "User '$username' deleted successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "User deletion cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function delete_group() {
+    local groupname=$(whiptail --inputbox "Enter the group name to delete:" 8 78 --title "Delete Group" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$groupname" || ! $(getent group "$groupname") ]]
+    then
+        whiptail --msgbox "Group '$groupname' does not exist." 8 78 --title "Error"
+        return
+    fi
+        sudo groupdel "$groupname"
+        whiptail --msgbox "Group '$groupname' deleted successfully." 8 78 --title "Success"
+    else
+        whiptail --msgbox "Group deletion cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+function add_user_to_group() {
+    local username=$(whiptail --inputbox "Enter the username to add to a group:" 8 78 --title "Add User to Group" 3>&1 1>&2 2>&3)
+    if [ $? -eq 0 ] 
+    then
+    if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
+    then
+        whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
+        return
+    fi
+        local groupname=$(whiptail --inputbox "Enter the group name:" 8 78 --title "Add User to Group" 3>&1 1>&2 2>&3)
+        if [ $? -eq 0 ]
+        then
+        if [[ -z "$groupname" || ! $(getent group "$groupname") ]]
+        then
+            whiptail --msgbox "Group '$groupname' does not exist." 8 78 --title "Error"
+            return
+        fi
+            sudo usermod -aG "$groupname" "$username"
+            whiptail --msgbox "User '$username' added to group '$groupname' successfully." 8 78 --title "Success"
+        else
+            whiptail --msgbox "Group addition cancelled." 8 78 --title "Cancelled"
+        fi
+    else
+        whiptail --msgbox "User addition cancelled." 8 78 --title "Cancelled"
+    fi
+}
+
+
+if [[ $UID -ne 0 ]]
+then
+    whiptail --msgbox "This script must be run as root." 8 78 --title "Error" 
+    exit 1
+fi
+
+while [[ true ]]
+do
+menu_option=$(menu)
+case $? in
+    0)
+        case ${menu_option} in
+            "Add User")
+                add_user
+                ;;
+            "Modify User")
+                modify_user             
+                ;;
+            "List Users")   
+                list_users
+                ;;
+            "Add Group")
+                add_group
+                ;;
+            "Modify Group")
+                modify_group
+                ;;
+            "List Groups")
+                list_groups
+                ;;
+            "Change User Password")
+                change_password             
+                ;;
+            "Enable User")
+                enable_user
+                ;;
+            "Disable User")
+                disable_user
+                ;;
+            "Delete User")
+                delete_user
+                ;;
+            "Delete Group")
+                delete_group
+                ;;
+            "Add User to Group")
+                add_user_to_group
+                ;;
+            "Exit")
+                break
+                ;;
+            *)
+                break
+                ;;
+        esac
+        ;;
+    *)
+        break
+        ;;
+esac
+done
