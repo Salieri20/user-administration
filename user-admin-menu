@@ -1,26 +1,47 @@
 #!/usr/bin/bash
 
-function menu() {
-whiptail --title "User Administration" --menu "Choose an option" 25 78 16 \
-"Add User" "Add a user to the system." \
-"Modify User" "Modify an existing user." \
-"Change User Password" "Change the password of a user." \
-"Enable User" "Enable a user account." \
-"Disable User" "Disable a user account." \
-"Delete User" "Delete a user from the system." \
-"List Users" "List all users on the system." \
-"Add Group" "Add a user group to the system." \
-"Modify Group" "Modify a group and its list of members." \
-"Add User to Group" "Add a user to a group." \
-"List Groups" "List all groups on the system." \
-"Delete Group" "Delete a group from the system." \
-"Exit" "Exit the menu." 3>&1 1>&2 2>&3
+# Main menu to divide operations into user and group management
+# This script uses whiptail to create a menu-driven interface for user and group management tasks
+function main_menu() {
+    whiptail --title "User and Group Management" --menu "Choose an option" 25 78 16 \
+    "User Management" "Manage users on the system." \
+    "Group Management" "Manage groups on the system." \
+    "Exit" "Exit the script." 3>&1 1>&2 2>&3
 }
 
-function add_user() {
+# User management menu
+function user_management_menu() {
+    whiptail --title "User Management" --menu "Choose an option" 25 78 16 \
+    "Add User" "Add a user to the system." \
+    "Modify User" "Modify an existing user." \
+    "Change User Password" "Change the password of a user." \
+    "Enable User" "Enable a user account." \
+    "Disable User" "Disable a user account." \
+    "Delete User" "Delete a user from the system." \
+    "List Users" "List all users on the system." \
+    "Add User to Group" "Add a user to a group." \
+    "Exit" "Return to main menu." 3>&1 1>&2 2>&3
+}
+
+# Group management menu
+function group_management_menu() {
+    whiptail --title "Group Management" --menu "Choose an option" 25 78 16 \
+    "Add Group" "Add a user group to the system." \
+    "Modify Group" "Modify a group and its list of members." \
+    "List Groups" "List all groups on the system." \
+    "Delete Group" "Delete a group from the system." \
+    "Exit" "Return to main menu." 3>&1 1>&2 2>&3
+}
+
+
+# Function definitions for user and group management 
+
+function add_user() { # Add a new user to the system
+    # Prompt for username and validate input
     local username=$(whiptail --inputbox "Enter the username to add:" 8 78 --title "Add User" 3>&1 1>&2 2>&3)
-    if [ $? -eq 0 ]
+    if [ $? -eq 0 ] # Check if the user pressed OK
     then
+    # Validate the username
     if [[ -z "$username" ]]; then
         whiptail --msgbox "Username cannot be empty." 8 78 --title "Error"
         return
@@ -33,6 +54,7 @@ function add_user() {
         whiptail --msgbox "Invalid username. Use only lowercase letters, numbers, dashes (-), or underscores (_). Must start with a letter or underscore." 8 78 --title "Error"
         return
     fi    
+    
         sudo useradd "$username"
         set_password $username 
         whiptail --msgbox "User '$username' added successfully." 8 78 --title "Success"
@@ -41,36 +63,43 @@ function add_user() {
     fi
 }
 
+# Modify an existing user
 function modify_user() {
     local username=$(whiptail --inputbox "Enter the username to modify:" 8 78 --title "Modify User" 3>&1 1>&2 2>&3)
+    # Check if the user pressed OK
     if [ $? -eq 0 ] 
     then
+    # Validate the username
     if [[ -z "$username" || ! $(id -u "$username" 2>/dev/null) ]]
     then
         whiptail --msgbox "User '$username' does not exist." 8 78 --title "Error"
         return
     fi
+    # Display options for modifying the user
     local option=$(whiptail --menu "Modify User Options" 15 78 4 \
         "Change Username" "Change the username." \
         "Change User ID" "Change the user ID." \
         "Change User Home Directory" "Change the user's home directory." \
         "Cancel" "Cancel the operation." 3>&1 1>&2 2>&3)
+
+    # Check if the user pressed OK
     case $? in
         0)
             case ${option} in
-                "Change Username")
+            
+                "Change Username") 
                     local new_username=$(whiptail --inputbox "Enter the new username:" 8 78 --title "Change Username" 3>&1 1>&2 2>&3)
                     if [ $? -eq 0 ] 
                     then
-                    if [[ -z "$username" ]]; then
+                    if [[ -z "$new_username" ]]; then
                         whiptail --msgbox "Username cannot be empty." 8 78 --title "Error"
                         return
                     fi
-                    if id "$username" &>/dev/null; then
-                        whiptail --msgbox "User '$username' already exists." 8 78 --title "Error"
+                    if id "$new_username" &>/dev/null; then
+                        whiptail --msgbox "User '$new_username' already exists." 8 78 --title "Error"
                         return
                     fi
-                    if [[ ! "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+                    if [[ ! "$new_username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
                         whiptail --msgbox "Invalid username. Use only lowercase letters, numbers, dashes (-), or underscores (_). Must start with a letter or underscore." 8 78 --title "Error"
                         return
                     fi    
@@ -80,6 +109,7 @@ function modify_user() {
                         whiptail --msgbox "Username change cancelled." 8 78 --title "Cancelled"
                     fi
                     ;;
+    
                 "Change User ID")
                     local new_uid=$(whiptail --inputbox "Enter the new user ID:" 8 78 --title "Change User ID" 3>&1 1>&2 2>&3)
                     if [ $? -eq 0 ] 
@@ -132,16 +162,19 @@ function modify_user() {
     fi 
 }
 
+# List all users on the system
 function list_users() {
+    # Create a temporary file to store the list of users
     local tempfile=$(mktemp)
-    getent passwd | cut -d: -f1 | sort > "$tempfile"
-    local users_array=()
+    getent passwd | cut -d: -f1 | sort > "$tempfile"  # Get the list of users and sort them
+    local users_array=() # Initialize an array to hold user names
+    # Read the temporary file and populate the users_array
     while IFS=: read -r username _
     do
         users_array+=("$username" "" OFF)
     done < $tempfile
     rm -f "$tempfile"
-
+    # Check if the users_array is empty
     if [ ${#users_array[@]} -eq 0 ]; then
         whiptail --msgbox "No users found." 8 40 --title "List Users"
     else
@@ -150,7 +183,7 @@ function list_users() {
     fi
 }
 
-function add_group() {
+function add_group() { # Add a new group to the system
     local groupname=$(whiptail --inputbox "Enter the group name to add:" 8 78 --title "Add Group" 3>&1 1>&2 2>&3)
     if [ $? -eq 0 ] 
     then
@@ -414,65 +447,68 @@ function add_user_to_group() {
     fi
 }
 
-
+# Check if the script is run as root
 if [[ $UID -ne 0 ]]
 then
     whiptail --msgbox "This script must be run as root." 8 78 --title "Error" 
     exit 1
 fi
 
+# Main loop to display the menu and handle user input
+# Use a while loop to keep the menu open until the user chooses to exit
 while [[ true ]]
 do
-menu_option=$(menu)
+menu_option=$(main_menu)
 case $? in
-    0)
-        case ${menu_option} in
-            "Add User")
-                add_user
+    0) # User selected an option
+        case $menu_option in
+            "User Management")
+                while true
+                do
+                    user_option=$(user_management_menu)
+                    case $? in
+                        0) # User selected an option
+                            case $user_option in
+                                "Add User") add_user ;;
+                                "Modify User") modify_user ;;
+                                "Change User Password") change_password ;;
+                                "Enable User") enable_user ;;
+                                "Disable User") disable_user ;;
+                                "Delete User") delete_user ;;
+                                "List Users") list_users ;;
+                                "Add User to Group") add_user_to_group ;;
+                                "Exit") break ;; # Exit user management menu
+                            esac
+                            ;;
+                        *) break ;; # Exit user management menu on cancel or error
+                    esac
+                done
                 ;;
-            "Modify User")
-                modify_user             
-                ;;
-            "List Users")   
-                list_users
-                ;;
-            "Add Group")
-                add_group
-                ;;
-            "Modify Group")
-                modify_group
-                ;;
-            "List Groups")
-                list_groups
-                ;;
-            "Change User Password")
-                change_password             
-                ;;
-            "Enable User")
-                enable_user
-                ;;
-            "Disable User")
-                disable_user
-                ;;
-            "Delete User")
-                delete_user
-                ;;
-            "Delete Group")
-                delete_group
-                ;;
-            "Add User to Group")
-                add_user_to_group
+            "Group Management")
+                while true
+                do
+                    group_option=$(group_management_menu)
+                    case $? in
+                        0) # User selected an option
+                            case $group_option in
+                                "Add Group") add_group ;;
+                                "Modify Group") modify_group ;;
+                                "List Groups") list_groups ;;
+                                "Delete Group") delete_group ;;
+                                "Exit") break ;; # Exit group management menu
+                            esac
+                            ;;
+                        *) break ;; # Exit group management menu on cancel or error
+                    esac
+                done
                 ;;
             "Exit")
-                break
-                ;;
-            *)
-                break
-                ;;
+                exit 0 ;; # Exit the script
         esac
         ;;
-    *)
-        break
-        ;;
+    *) exit 0 ;; # Exit the script on cancel or error from main menu
 esac
-done
+done 
+
+
+
