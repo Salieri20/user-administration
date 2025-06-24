@@ -49,6 +49,7 @@ sudo yum install newt
 
 # Fedora
 sudo dnf install newt
+```
 
 ---
 
@@ -58,11 +59,12 @@ sudo dnf install newt
 ```bash
 git clone https://github.com/yourusername/linux-user-admin.git
 cd linux-user-admin
-
+```
 2- Make the script executable:
 ```bash
 chmod +x user_admin.sh
-
+```
 3- Run with root privileges:
 ```bash
 sudo ./user_admin.sh
+```
