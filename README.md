@@ -57,16 +57,16 @@ sudo dnf install newt
 
 1- Clone the repository:
 ```bash
-git clone https://github.com/yourusername/linux-user-admin.git
-cd linux-user-admin
+git clone https://github.com/Salieri20/user-administration.git
+cd user-administration
 ```
 2- Make the script executable:
 ```bash
-chmod +x user_admin.sh
+chmod +x user-admin-menu
 ```
 3- Run with root privileges:
 ```bash
-sudo ./user_admin.sh
+sudo ./user-admin-menu
 ```
 
 ---
