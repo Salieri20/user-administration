@@ -6,35 +6,46 @@ A Bash-based user and group administration tool with a terminal-based graphical 
 
 ## 📋 Features
 
-- 👤 **User Management**
-  - Add user
-  - Modify user (username, UID, home directory)
-  - Change user password
-  - Enable/Disable user account
-  - Delete user
-  - List all users
+### 👤 User Management
+- Add user with password setting
+- Modify user (username, UID, home directory)
+- Change user password
+- Enable/Disable user account
+- Delete user (with or without home directory)
+- List all users with selection interface
 
-- 👥 **Group Management**
-  - Add group
-  - Modify group (name, GID)
-  - Add user to group
-  - Delete group
-  - List all groups
+### 👥 Group Management
+- Add group
+- Modify group (name, GID)
+- Add user to group
+- Delete group
+- List all groups with selection interface
 
-- 📦 Uses native Linux commands like `useradd`, `usermod`, `passwd`, `groupadd`, `groupmod`, `getent`, and `id`
+### 🛡️ Security Features
+- Input validation for usernames and groups
+- Password handling with secure prompts
+- Root privilege verification
+
+### 📦 Technical
+- Uses native Linux commands: `useradd`, `usermod`, `passwd`, `groupadd`, `groupmod`
+- Built with Bash and Whiptail
+- Lightweight and fast execution
 
 ---
 
 ## 🖥️ Prerequisites
 
-- Linux environment
-- `whiptail` installed
-- Root or sudo privileges
+- Linux environment (tested on Ubuntu/Debian and RHEL/CentOS)
+- Bash v4.0+
+- `whiptail` (usually pre-installed)
 
-To install `whiptail` (if not already installed):
-
+Install `whiptail` if needed:
 ```bash
-sudo apt-get install whiptail   # Debian/Ubuntu
-# or
-sudo yum install newt           # RHEL/CentOS
+# Debian/Ubuntu
+sudo apt-get install whiptail
 
+# RHEL/CentOS
+sudo yum install newt
+
+# Fedora
+sudo dnf install newt
