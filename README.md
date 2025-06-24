@@ -68,3 +68,38 @@ chmod +x user_admin.sh
 ```bash
 sudo ./user_admin.sh
 ```
+
+---
+## 🎮 Usage
+Navigate the interface using:
+
+* ↑↓ Arrow keys: Move between options
+
+* Enter: Confirm selection
+
+* Tab: Switch between buttons/fields
+
+* Esc: Cancel/Go back
+
+---
+## 🛠️ Development
+### Testing
+Tested on:
+* CentOS 9
+
+### Known Issues
+* Limited to ASCII characters in usernames
+* Performance degrades with 1000+ users/groups
+
+### Future Plans
+* Add bulk operations
+* Implement user/group search
+* Add logging feature
+
+--- 
+## 🤝 Contributing
+1- Fork the project
+2- Create your feature branch (git checkout -b feature/AmazingFeature)
+3- Commit your changes (git commit -m 'Add some feature')
+4- Push to the branch (git push origin feature/AmazingFeature)
+5- Open a Pull Request
