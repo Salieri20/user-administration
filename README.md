@@ -12,14 +12,14 @@ A Bash-based user and group administration tool with a terminal-based graphical 
 - Change user password
 - Enable/Disable user account
 - Delete user (with or without home directory)
-- List all users with selection interface
+- List all users with a selection interface
 
 ### 👥 Group Management
 - Add group
 - Modify group (name, GID)
 - Add user to group
 - Delete group
-- List all groups with selection interface
+- List all groups with a selection interface
 
 ### 🛡️ Security Features
 - Input validation for usernames and groups
@@ -49,3 +49,20 @@ sudo yum install newt
 
 # Fedora
 sudo dnf install newt
+
+---
+
+## 🚀 Installation
+
+1- Clone the repository:
+```bash
+git clone https://github.com/yourusername/linux-user-admin.git
+cd linux-user-admin
+
+2- Make the script executable:
+```bash
+chmod +x user_admin.sh
+
+3- Run with root privileges:
+```bash
+sudo ./user_admin.sh
